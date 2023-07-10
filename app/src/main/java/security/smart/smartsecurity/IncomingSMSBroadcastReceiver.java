@@ -18,15 +18,16 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     private final String KEY_PDUS = "pdus"; // Key to extract pdu objects from bundle
 
     private final int PDU_OBJECT_INDEX = 0; // Expect only one pdu per message
+
     @SuppressLint("LongLogTag")
     @Override
     public void onReceive(Context context, Intent intent) {
-      final Bundle bundle = intent.getExtras();
-      if (bundle == null) throw new IllegalStateException("SMS Bundle is empty");
+        final Bundle bundle = intent.getExtras();
+        if (bundle == null) throw new IllegalStateException("SMS Bundle is empty");
 
-      final Object[] pduArr = (Object[]) bundle.get(KEY_PDUS);
-      final byte[] pdu = (byte[]) pduArr[PDU_OBJECT_INDEX];
-      if (pdu == null) throw new IllegalStateException("SMS pdu is empty");
+        final Object[] pduArr = (Object[]) bundle.get(KEY_PDUS);
+        final byte[] pdu = (byte[]) pduArr[PDU_OBJECT_INDEX];
+        if (pdu == null) throw new IllegalStateException("SMS pdu is empty");
 
         SmsMessage smsMessage = SmsMessage.createFromPdu(pdu);
         if (!isFromRemoteDevice(context, smsMessage.getDisplayOriginatingAddress())) {
@@ -35,7 +36,8 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
             return;
         }
         String msgBody = smsMessage.getMessageBody();
-        if (TextUtils.isEmpty(msgBody)) throw new IllegalStateException("Receiving empty messages from remote sensors");
+        if (TextUtils.isEmpty(msgBody))
+            throw new IllegalStateException("Receiving empty messages from remote sensors");
 
         // check for valid message
         Gson gson = new Gson();
@@ -43,7 +45,7 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
         IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
         if (innerMessage == null) throw new IllegalStateException("Event parsing error");
 
-        SystemStateOps  systemStateOps = new SystemStateOps(context);
+        SystemStateOps systemStateOps = new SystemStateOps(context);
         systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
         sendNewSystemStateEvent();
     }
@@ -54,10 +56,11 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     }
 
     private boolean isFromRemoteDevice(Context context, String srcPhoneNumber) {
-        SystemStateOps  systemStateOps = new SystemStateOps(context);
+        SystemStateOps systemStateOps = new SystemStateOps(context);
         String remoteSensorsPhoneNumber = systemStateOps.getSavedNumber();
         return remoteSensorsPhoneNumber.equals(srcPhoneNumber);
     }
 
-    public static class NewSystemStateEvent {}
+    public static class NewSystemStateEvent {
+    }
 }
