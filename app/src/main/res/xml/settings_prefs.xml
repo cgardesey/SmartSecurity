@@ -10,6 +10,7 @@
         android:title="@string/low_balance_warning_limit"
         android:inputType="numberDecimal"
         android:digits="0123456789"
+        android:defaultValue="0"
         android:key="@string/pref_key_low_balance_warning_limit"
         app:useSimpleSummaryProvider="true" />
 </PreferenceScreen>

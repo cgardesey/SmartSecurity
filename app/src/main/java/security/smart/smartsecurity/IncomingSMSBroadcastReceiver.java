@@ -44,7 +44,7 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
         if (remoteSystemStateInnerMessage == null) throw new IllegalStateException("Event parsing error");
 
         SystemStateOps  systemStateOps = new SystemStateOps(context);
-        systemStateOps.saveRemoteSystemState(remoteSystemStateInnerMessage);
+        systemStateOps.saveRemoteSystemState(remoteSystemStateInnerMessage.toRemoteSystemResponse());
         sendNewSystemStateEvent();
     }
 

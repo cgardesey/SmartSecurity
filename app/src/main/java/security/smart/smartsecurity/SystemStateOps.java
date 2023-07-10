@@ -34,11 +34,11 @@ public class SystemStateOps {
                 .apply();
     }
 
-    public void saveRemoteSystemState(RemoteSystemStateMessage.RemoteSystemStateInnerMessage event) {
+    public void saveRemoteSystemState(RemoteSystemState state) {
         SharedPreferences.Editor editor = PreferenceManager
                 .getDefaultSharedPreferences(context).edit();
         Gson gson = new Gson();
-        editor.putString(PREF_LAST_SYSTEM_STATE, gson.toJson(event)).apply();
+        editor.putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state)).apply();
     }
 
     public boolean isSystemSetUp() {
