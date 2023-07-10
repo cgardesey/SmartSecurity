@@ -39,12 +39,12 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
 
         // check for valid message
         Gson gson = new Gson();
-        RemoteSystemStateMessage sysEvenMsg = gson.fromJson(msgBody, RemoteSystemStateMessage.class);
-        RemoteSystemStateMessage.RemoteSystemStateInnerMessage remoteSystemStateInnerMessage = sysEvenMsg.getS();
-        if (remoteSystemStateInnerMessage == null) throw new IllegalStateException("Event parsing error");
+        IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
+        IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
+        if (innerMessage == null) throw new IllegalStateException("Event parsing error");
 
         SystemStateOps  systemStateOps = new SystemStateOps(context);
-        systemStateOps.saveRemoteSystemState(remoteSystemStateInnerMessage.toRemoteSystemResponse());
+        systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
         sendNewSystemStateEvent();
     }
 

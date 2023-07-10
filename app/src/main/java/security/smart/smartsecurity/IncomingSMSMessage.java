@@ -3,18 +3,18 @@ package security.smart.smartsecurity;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RemoteSystemStateMessage {
-    private RemoteSystemStateInnerMessage S;
+public class IncomingSMSMessage {
+    private InnerMessage S;
 
-    public RemoteSystemStateInnerMessage getS() {
+    public InnerMessage getS() {
         return S;
     }
 
-    public void setS(RemoteSystemStateInnerMessage s) {
+    public void setS(InnerMessage s) {
         S = s;
     }
 
-    public static class RemoteSystemStateInnerMessage {
+    public static class InnerMessage {
         private List<Integer> A = new ArrayList<>();
         private int P;
         private int I;
