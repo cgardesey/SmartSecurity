@@ -52,11 +52,16 @@ public class MainActivity extends AppCompatActivity {
         EventBus.getDefault().register(this);
 
         if (!systemStateOps.isSystemSetUp()) {
-            launchSettingScreen();
+            showSetUpDialog();
         } else {
             updateUI();
             setSystemState();
         }
+    }
+
+    private void showSetUpDialog() {
+        SetupDialogFragment setupDialogFragment = new SetupDialogFragment();
+        setupDialogFragment.show(getSupportFragmentManager(), null);
     }
 
     private void updateUI() {
@@ -213,14 +218,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setUpPowerBtn() {
-        powerIV.setOnClickListener(new View.OnClickListener() {
+        powerIV.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
-            public void onClick(View v) {
+            public boolean onLongClick(View v) {
                 if (currentSystemState.hasPower()) {
                     remoteMessageOps.turnPowerOff();
                 } else {
                     remoteMessageOps.turnPowerOn();
                 }
+                return true;
             }
         });
     }

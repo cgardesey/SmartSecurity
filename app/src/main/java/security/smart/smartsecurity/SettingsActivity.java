@@ -5,6 +5,7 @@ import android.os.PersistableBundle;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceFragmentCompat;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -24,5 +25,12 @@ public class SettingsActivity extends AppCompatActivity {
                 .beginTransaction()
                 .add(R.id.container, settingsFragment)
                 .commitNow();
+    }
+
+    public static class SettingsFragment extends PreferenceFragmentCompat {
+        @Override
+        public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+            setPreferencesFromResource(R.xml.settings_prefs, rootKey);
+        }
     }
 }
