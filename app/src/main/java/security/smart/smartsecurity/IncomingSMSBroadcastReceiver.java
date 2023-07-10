@@ -11,6 +11,8 @@ import android.util.Log;
 
 import com.google.gson.Gson;
 
+import org.greenrobot.eventbus.EventBus;
+
 public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "IncomingSMSBroadcastReceiver";
     private final String KEY_PDUS = "pdus"; // Key to extract pdu objects from bundle
@@ -37,23 +39,25 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
 
         // check for valid message
         Gson gson = new Gson();
-        IncomingRemoteEventMessage sysEvenMsg = gson.fromJson(msgBody, IncomingRemoteEventMessage.class);
-        RemoteDetectionEvent remoteDetectionEvent = sysEvenMsg.getS();
-        if (remoteDetectionEvent == null) throw new IllegalStateException("Event parsing error");
+        RemoteSystemStateMessage sysEvenMsg = gson.fromJson(msgBody, RemoteSystemStateMessage.class);
+        RemoteSystemStateMessage.RemoteSystemStateInnerMessage remoteSystemStateInnerMessage = sysEvenMsg.getS();
+        if (remoteSystemStateInnerMessage == null) throw new IllegalStateException("Event parsing error");
 
-        SystemStateOps.saveLastRemoteEvent(context, remoteDetectionEvent);
-        SystemStateOps.setAlarmState(context,true);
-        launchMainScreen(context);
+        SystemStateOps  systemStateOps = new SystemStateOps(context);
+        systemStateOps.saveRemoteSystemState(remoteSystemStateInnerMessage);
+        sendNewSystemStateEvent();
     }
 
-    private void launchMainScreen(Context context) {
-        Intent i = new Intent(context.getApplicationContext(), MainActivity.class);
-        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(i);
+    private void sendNewSystemStateEvent() {
+        EventBus eventBus = EventBus.getDefault();
+        eventBus.post(new NewSystemStateEvent());
     }
 
-    private boolean isFromRemoteDevice(Context ctx, String srcPhoneNumber) {
-        String remoteSensorsPhoneNumber = SystemStateOps.getSavedNumber(ctx);
+    private boolean isFromRemoteDevice(Context context, String srcPhoneNumber) {
+        SystemStateOps  systemStateOps = new SystemStateOps(context);
+        String remoteSensorsPhoneNumber = systemStateOps.getSavedNumber();
         return remoteSensorsPhoneNumber.equals(srcPhoneNumber);
     }
+
+    public static class NewSystemStateEvent {}
 }
