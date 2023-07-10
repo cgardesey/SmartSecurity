@@ -136,14 +136,23 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        String message = Utils.getLastSystemState(this);
-        if(!TextUtils.isEmpty(message)){
-            SystemResponse response = JsonParser.parseJson(message);
-            setSystemResponseDisplay(response);
-        }
-
-        if (TextUtils.isEmpty(Utils.getSavedNumber(this)))
+        if (!SystemStateOps.isSystemSetUp(this)) {
             showPhoneNumberDialog();
+        } else {
+            checkLastSystemState();
+        }
+    }
+
+    private void checkLastSystemState() {
+        if (SystemStateOps.hasPendingRemoteEvent(this)) {
+            RemoteDetectionEvent lastEvent = SystemStateOps.getLastRemoteEvent(this);
+            SystemStateOps.clearLastPendingEvent(this);
+            setSystemResponseDisplay(lastEvent.toSystemResponse());
+        }
+    }
+
+    private boolean isSystemSetup() {
+        return !TextUtils.isEmpty(SystemStateOps.getSavedNumber(this));
     }
 
     private void showPhoneNumberDialog() {
@@ -153,13 +162,13 @@ public class MainActivity extends AppCompatActivity {
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
-        input.setText(Utils.getSavedNumber(this));
+        input.setText(SystemStateOps.getSavedNumber(this));
 
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String userInput = input.getText().toString();
-                Utils.savePhoneNumber(MainActivity.this, userInput);
+                SystemStateOps.savePhoneNumber(MainActivity.this, userInput);
             }
         });
         builder.show();
@@ -211,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
         userTV.setText("System Response to " +  String.valueOf(response.getUser()));
 
         final TextView powerTV = (TextView) findViewById(R.id.powerTV);
-        if (response.isIntruder() && Utils.getAlarmState(this)) {
+        if (response.isIntruder() && SystemStateOps.getAlarmState(this)) {
             powerTV.setText("Intrusion Alert!!!");
             Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
 
@@ -249,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
                     powerTV.setBackgroundResource(R.drawable.white_background);
 
                     powerTV.setText("");
-                    Utils.setAlarmState(MainActivity.this,false);
+                    SystemStateOps.setAlarmState(MainActivity.this,false);
                 }
             }.start();
 
@@ -355,7 +364,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void sendMessage(String message) {
-        String phoneNumber = Utils.getSavedNumber(this);
+        String phoneNumber = SystemStateOps.getSavedNumber(this);
         if (TextUtils.isEmpty(phoneNumber)) {
             showPhoneNumberDialog();
             return;
