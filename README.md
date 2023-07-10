@@ -7,10 +7,9 @@ This project was created to demonstate sms based security system monitoring.
 This project includes the following features:
 
 - Receive intrusion sms notification and sound of alarm on mobile device
-- Check system status
-- Activate panic alarms
-- Local data storage using shared preference
-- Event handling of incoming sms using event bus
+- Check status of remote intrusion detection system
+- Remotely ctivate panic alarms
+- Remotely top up credit balance on remote intrusion detection system
 
 ## Getting Started
 
