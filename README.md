@@ -36,7 +36,7 @@ Smart Security project demonstrates a simple sms based application that retrieve
 
 The application consists of multiple fragments, each showcasing a different Android component or feature. Use the navigation drawer to switch between fragments and explore the different features.
 
-If you're looking to integrate with arduino project, make sure to check out the the repository [corresponding ariduino firmware](https://github.com/cgardesey/smart_security_firmware) for detailed instructions.
+If you're looking to integrate with arduino project, make sure to check out the the repository corresponding to the [ariduino firmware](https://github.com/cgardesey/smart_security_firmware) for detailed instructions.
 
 ## License
 
