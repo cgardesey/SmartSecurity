@@ -5,5 +5,7 @@
     <color name="colorAccent">#FF4081</color>
     <color name="red">#ff0004</color>
     <color name="green">#0b4e01</color>
+    <color name="transparent">#00000000</color>
     <color name="default_color">#fff3f3f3</color>
+    <color name="smoke_white">#e8eaf6</color>
 </resources>

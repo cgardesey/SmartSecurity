@@ -2,7 +2,12 @@ package security.smart.smartsecurity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -33,30 +38,24 @@ public class MainActivity extends AppCompatActivity {
 
     RemoteSystemState currentSystemState = new RemoteSystemState();
 
-    RemoteMessageOps remoteMessageOps;
+    RemoteOps remoteOps;
 
-    SystemStateOps systemStateOps;
+    LocalOps localOps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Context appContext = getApplicationContext();
-        remoteMessageOps = new RemoteMessageOps(appContext);
-        systemStateOps = new SystemStateOps(appContext);
+        remoteOps = new RemoteOps(appContext);
+        localOps = new LocalOps(appContext);
         setUpUIHandles();
     }
 
     protected void onStart() {
         super.onStart();
         EventBus.getDefault().register(this);
-
-        if (!systemStateOps.isSystemSetUp()) {
-            showSetUpDialog();
-        } else {
-            updateUI();
-            setSystemState();
-        }
+        refreshSystemState();
     }
 
     private void showSetUpDialog() {
@@ -69,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
         updateBalanceTV();
         updateUserTV();
         updateIntruderAlertTV();
+        playIntruderSound();
     }
 
     private void updateIntruderAlertTV() {
@@ -79,45 +79,47 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void playIntruderSound() {
-//        Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-//
-//        if (alert == null) {
-//            // alert is null, using backup
-//            alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-//
-//            // I can't see this ever being null (as always have a default notification)
-//            // but just incase
-//            if (alert == null) {
-//                // alert backup is null, using 2nd backup
-//                alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-//            }
-//        }
-//        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), alert);
-//        r.play();
-//        r.play();
-//        r.play();
-//        new CountDownTimer(10000, 200) {
-//            int timerCounter = 0;
-//
-//            @Override
-//            public void onTick(long millisUntilFinished) {
-//                // empty
-//
-//                if (timerCounter % 2 == 0) {
-//                    powerTV.setBackgroundResource(R.drawable.red_background);
-//                } else {
-//                    powerTV.setBackgroundResource(R.color.default_color);
-//                }
-//            }
-//
-//            @Override
-//            public void onFinish() {
-//                powerTV.setBackgroundResource(R.drawable.white_background);
-//
-//                powerTV.setText("");
+        Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+
+        if (alert == null) {
+            // alert is null, using backup
+            alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
+            // I can't see this ever being null (as always have a default notification)
+            // but just incase
+            if (alert == null) {
+                // alert backup is null, using 2nd backup
+                alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+            }
+        }
+        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), alert);
+        r.play();
+        r.play();
+        r.play();
+        new CountDownTimer(10000, 200) {
+            int timerCounter = 0;
+
+            @Override
+            public void onTick(long millisUntilFinished) {
+                timerCounter++;
+
+                if (timerCounter % 2 == 0) {
+                    intruderAlertTV.setBackgroundResource(R.drawable.red_background);
+                    intruderAlertTV.setTextColor(Color.WHITE);
+                } else {
+                    intruderAlertTV.setBackgroundResource(R.color.smoke_white);
+                    intruderAlertTV.setTextColor(Color.BLACK);
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                intruderAlertTV.setBackgroundResource(R.drawable.white_background);
+
+                intruderAlertTV.setText("");
 //                SystemStateOps.setAlarmState(MainActivity.this, false);
-//            }
-//        }.start();
+            }
+        }.start();
     }
 
     private void updateUserTV() {
@@ -126,8 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateBalanceTV() {
         balanceTV.setText("GHC " + String.valueOf(currentSystemState.getBalance()));
-        String strBalanceLimit = systemStateOps.getLowBalanceWarningLimit();
-        double lowBalanceLimit = Double.parseDouble(strBalanceLimit);
+        double lowBalanceLimit = localOps.getLowBalanceWarningLimit();
         if (currentSystemState.getBalance() < lowBalanceLimit) {
             balanceTV.setTextColor(getResources().getColor(R.color.red));
         } else {
@@ -143,13 +144,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void getEvent(IncomingSMSBroadcastReceiver.NewSystemStateEvent event) {
-        setSystemState();
+        refreshSystemState();
     }
 
-    private void setSystemState() {
-        if (systemStateOps.hasRemoteSystemState()) {
-            currentSystemState = systemStateOps.getRemoteSystemState();
-            updateUI();
+    private void refreshSystemState() {
+        if (!localOps.isSystemSetUp()) {
+            showSetUpDialog();
+        } else {
+            if (localOps.hasPendingState()) {
+                currentSystemState = localOps.getRemoteSystemState();
+                localOps.clearPendingState();
+                updateUI();
+            }
         }
     }
 
@@ -187,10 +193,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View v) {
                 if (currentSystemState.areAllAlarmsOn()) {
-                    remoteMessageOps.turnAllAlarmsOff();
+                    remoteOps.turnAllAlarmsOff();
                     return true;
                 } else {
-                    remoteMessageOps.turnAllAlarmsOn();
+                    remoteOps.turnAllAlarmsOn();
                     return false;
                 }
 
@@ -202,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         checkBalanceBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                remoteMessageOps.retrieveRemoteSystemState();
+                remoteOps.retrieveRemoteSystemState();
             }
         });
     }
@@ -222,9 +228,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View v) {
                 if (currentSystemState.hasPower()) {
-                    remoteMessageOps.turnPowerOff();
+                    remoteOps.turnPowerOff();
                 } else {
-                    remoteMessageOps.turnPowerOn();
+                    remoteOps.turnPowerOn();
                 }
                 return true;
             }
@@ -294,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void testAlarm(Alarm alarm) {
-        remoteMessageOps.testAlarm(alarm);
+        remoteOps.testAlarm(alarm);
     }
 
     private void testAllAlarms() {

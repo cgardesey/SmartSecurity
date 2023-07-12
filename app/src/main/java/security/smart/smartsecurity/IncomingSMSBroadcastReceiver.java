@@ -12,7 +12,6 @@ import android.util.Log;
 import com.google.gson.Gson;
 
 import org.greenrobot.eventbus.EventBus;
-import org.json.JSONException;
 
 public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "IncomingSMSBroadcastReceiver";
@@ -53,8 +52,8 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
             Gson gson = new Gson();
             IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
             IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
-            SystemStateOps systemStateOps = new SystemStateOps(context);
-            systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
+            LocalOps localOps = new LocalOps(context);
+            localOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
             sendNewSystemStateEvent();
         } catch (Exception e) {
             Log.d(TAG, "Remote State parsing error" + e);
@@ -67,8 +66,8 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     }
 
     private boolean isFromRemoteDevice(Context context, String srcPhoneNumber) {
-        SystemStateOps systemStateOps = new SystemStateOps(context);
-        String remoteSensorsPhoneNumber = systemStateOps.getSavedNumber();
+        LocalOps localOps = new LocalOps(context);
+        String remoteSensorsPhoneNumber = localOps.getSavedNumber();
         return remoteSensorsPhoneNumber.equals(srcPhoneNumber);
     }
 

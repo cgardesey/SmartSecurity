@@ -13,7 +13,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#e8eaf6"
+        android:background="@color/smoke_white"
         android:orientation="vertical">
 
         <LinearLayout
