@@ -3,7 +3,7 @@ package security.smart.smartsecurity;
 import android.content.Context;
 import android.telephony.SmsManager;
 
-public class RemoteMessageOps {
+public class RemoteOps {
     private static final String MSG_CHECK_STATUS = "Check balance";
 
     private static final String MSG_ALL_ALARMS_TURN_ON = "all1";
@@ -14,11 +14,11 @@ public class RemoteMessageOps {
 
     private Context context;
 
-    private SystemStateOps systemStateOps;
+    private LocalOps localOps;
 
-    public RemoteMessageOps(Context context) {
+    public RemoteOps(Context context) {
         this.context = context;
-        this.systemStateOps = new SystemStateOps(context);
+        this.localOps = new LocalOps(context);
     }
 
     public void retrieveRemoteSystemState() {
@@ -55,8 +55,8 @@ public class RemoteMessageOps {
     }
 
     private void sendMessage(String message) {
-        if (!systemStateOps.isSystemSetUp()) throw new IllegalStateException("System setup required");
-        final String sysPhoneNumber = systemStateOps.getSavedNumber();
+        if (!localOps.isSystemSetUp()) throw new IllegalStateException("System setup required");
+        final String sysPhoneNumber = localOps.getSavedNumber();
         SmsManager sm = SmsManager.getDefault();
         sm.sendTextMessage(sysPhoneNumber, null, message, null, null);
     }

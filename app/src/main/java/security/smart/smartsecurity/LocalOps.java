@@ -11,15 +11,16 @@ import com.google.gson.Gson;
 /**
  * Created by user on 6/23/2016.
  */
-public class SystemStateOps {
+public class LocalOps {
     private static final String PREF_PHONE_NUMBER = "PREF_PHONE_NUMBER";
     private static final String PREF_LAST_SYSTEM_STATE = "PREF_LAST_SYSTEM_STATE";
     private static final String PREF_ALARM_STATE = "PREF_ALARM_STATE";
+    private static final String PENDING_STATE = "PENDING_STATE";
 
     private Context context;
     private SharedPreferences prefs;
 
-    public SystemStateOps(Context context) {
+    public LocalOps(Context context) {
         this.context = context;
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
     }
@@ -34,7 +35,10 @@ public class SystemStateOps {
 
     public void saveRemoteSystemState(RemoteSystemState state) {
         Gson gson = new Gson();
-        prefs.edit().putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state)).apply();
+        prefs.edit()
+                .putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state))
+                .putBoolean(PENDING_STATE, true)
+                .apply();
     }
 
     public boolean isSystemSetUp() {
@@ -55,5 +59,13 @@ public class SystemStateOps {
         String balStr = prefs.getString(context.getString(R.string.pref_key_low_balance_warning_limit),
                 context.getString(R.string.pref_low_balance_warning_limit_default));
         return Double.parseDouble(balStr);
+    }
+
+    public boolean hasPendingState() {
+        return prefs.getBoolean(PENDING_STATE, false);
+    }
+
+    public void clearPendingState() {
+        prefs.edit().remove(PENDING_STATE).apply();
     }
 }

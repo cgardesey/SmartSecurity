@@ -26,9 +26,9 @@ public class SetupDialogFragment extends DialogFragment {
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                SystemStateOps systemStateOps = new SystemStateOps(requireContext().getApplicationContext());
+                LocalOps localOps = new LocalOps(requireContext().getApplicationContext());
                 String phoneNumStr = inputET.getText().toString().trim();
-                systemStateOps.savePhoneNumber(phoneNumStr);
+                localOps.savePhoneNumber(phoneNumStr);
                 dismiss();
             }
         });

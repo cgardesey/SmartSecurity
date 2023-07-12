@@ -38,30 +38,24 @@ public class MainActivity extends AppCompatActivity {
 
     RemoteSystemState currentSystemState = new RemoteSystemState();
 
-    RemoteMessageOps remoteMessageOps;
+    RemoteOps remoteOps;
 
-    SystemStateOps systemStateOps;
+    LocalOps localOps;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Context appContext = getApplicationContext();
-        remoteMessageOps = new RemoteMessageOps(appContext);
-        systemStateOps = new SystemStateOps(appContext);
+        remoteOps = new RemoteOps(appContext);
+        localOps = new LocalOps(appContext);
         setUpUIHandles();
     }
 
     protected void onStart() {
         super.onStart();
         EventBus.getDefault().register(this);
-
-        if (!systemStateOps.isSystemSetUp()) {
-            showSetUpDialog();
-        } else {
-            updateUI();
-            setSystemState();
-        }
+        refreshSystemState();
     }
 
     private void showSetUpDialog() {
@@ -134,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateBalanceTV() {
         balanceTV.setText("GHC " + String.valueOf(currentSystemState.getBalance()));
-        double lowBalanceLimit = systemStateOps.getLowBalanceWarningLimit();
+        double lowBalanceLimit = localOps.getLowBalanceWarningLimit();
         if (currentSystemState.getBalance() < lowBalanceLimit) {
             balanceTV.setTextColor(getResources().getColor(R.color.red));
         } else {
@@ -150,13 +144,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void getEvent(IncomingSMSBroadcastReceiver.NewSystemStateEvent event) {
-        setSystemState();
+        refreshSystemState();
     }
 
-    private void setSystemState() {
-        if (systemStateOps.hasRemoteSystemState()) {
-            currentSystemState = systemStateOps.getRemoteSystemState();
-            updateUI();
+    private void refreshSystemState() {
+        if (!localOps.isSystemSetUp()) {
+            showSetUpDialog();
+        } else {
+            if (localOps.hasPendingState()) {
+                currentSystemState = localOps.getRemoteSystemState();
+                localOps.clearPendingState();
+                updateUI();
+            }
         }
     }
 
@@ -194,10 +193,10 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View v) {
                 if (currentSystemState.areAllAlarmsOn()) {
-                    remoteMessageOps.turnAllAlarmsOff();
+                    remoteOps.turnAllAlarmsOff();
                     return true;
                 } else {
-                    remoteMessageOps.turnAllAlarmsOn();
+                    remoteOps.turnAllAlarmsOn();
                     return false;
                 }
 
@@ -209,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         checkBalanceBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                remoteMessageOps.retrieveRemoteSystemState();
+                remoteOps.retrieveRemoteSystemState();
             }
         });
     }
@@ -229,9 +228,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View v) {
                 if (currentSystemState.hasPower()) {
-                    remoteMessageOps.turnPowerOff();
+                    remoteOps.turnPowerOff();
                 } else {
-                    remoteMessageOps.turnPowerOn();
+                    remoteOps.turnPowerOn();
                 }
                 return true;
             }
@@ -301,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void testAlarm(Alarm alarm) {
-        remoteMessageOps.testAlarm(alarm);
+        remoteOps.testAlarm(alarm);
     }
 
     private void testAllAlarms() {
