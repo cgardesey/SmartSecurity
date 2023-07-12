@@ -11,20 +11,30 @@ import android.util.Log;
 
 import com.google.gson.Gson;
 
+import org.greenrobot.eventbus.EventBus;
+import org.json.JSONException;
+
 public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "IncomingSMSBroadcastReceiver";
     private final String KEY_PDUS = "pdus"; // Key to extract pdu objects from bundle
 
     private final int PDU_OBJECT_INDEX = 0; // Expect only one pdu per message
+
     @SuppressLint("LongLogTag")
     @Override
     public void onReceive(Context context, Intent intent) {
-      final Bundle bundle = intent.getExtras();
-      if (bundle == null) throw new IllegalStateException("SMS Bundle is empty");
+        final Bundle bundle = intent.getExtras();
+        if (bundle == null) {
+            Log.d(TAG, "SMS Bundle is empty");
+            return;
+        }
 
-      final Object[] pduArr = (Object[]) bundle.get(KEY_PDUS);
-      final byte[] pdu = (byte[]) pduArr[PDU_OBJECT_INDEX];
-      if (pdu == null) throw new IllegalStateException("SMS pdu is empty");
+        final Object[] pduArr = (Object[]) bundle.get(KEY_PDUS);
+        final byte[] pdu = (byte[]) pduArr[PDU_OBJECT_INDEX];
+        if (pdu == null) {
+            Log.d(TAG, "SMS pdu is empty");
+            return;
+        }
 
         SmsMessage smsMessage = SmsMessage.createFromPdu(pdu);
         if (!isFromRemoteDevice(context, smsMessage.getDisplayOriginatingAddress())) {
@@ -33,27 +43,35 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
             return;
         }
         String msgBody = smsMessage.getMessageBody();
-        if (TextUtils.isEmpty(msgBody)) throw new IllegalStateException("Receiving empty messages from remote sensors");
+        if (TextUtils.isEmpty(msgBody)) {
+            Log.d(TAG, "Receiving empty messages from remote sensors");
+            return;
+        }
 
-        // check for valid message
-        Gson gson = new Gson();
-        IncomingRemoteEventMessage sysEvenMsg = gson.fromJson(msgBody, IncomingRemoteEventMessage.class);
-        RemoteDetectionEvent remoteDetectionEvent = sysEvenMsg.getS();
-        if (remoteDetectionEvent == null) throw new IllegalStateException("Event parsing error");
-
-        SystemStateOps.saveLastRemoteEvent(context, remoteDetectionEvent);
-        SystemStateOps.setAlarmState(context,true);
-        launchMainScreen(context);
+        try {
+            // check for valid message
+            Gson gson = new Gson();
+            IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
+            IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
+            SystemStateOps systemStateOps = new SystemStateOps(context);
+            systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
+            sendNewSystemStateEvent();
+        } catch (Exception e) {
+            Log.d(TAG, "Remote State parsing error" + e);
+        }
     }
 
-    private void launchMainScreen(Context context) {
-        Intent i = new Intent(context.getApplicationContext(), MainActivity.class);
-        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(i);
+    private void sendNewSystemStateEvent() {
+        EventBus eventBus = EventBus.getDefault();
+        eventBus.post(new NewSystemStateEvent());
     }
 
-    private boolean isFromRemoteDevice(Context ctx, String srcPhoneNumber) {
-        String remoteSensorsPhoneNumber = SystemStateOps.getSavedNumber(ctx);
+    private boolean isFromRemoteDevice(Context context, String srcPhoneNumber) {
+        SystemStateOps systemStateOps = new SystemStateOps(context);
+        String remoteSensorsPhoneNumber = systemStateOps.getSavedNumber();
         return remoteSensorsPhoneNumber.equals(srcPhoneNumber);
+    }
+
+    public static class NewSystemStateEvent {
     }
 }

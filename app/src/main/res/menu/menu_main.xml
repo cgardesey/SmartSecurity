@@ -3,17 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="security.smart.myapplication.MainActivity">
     <item
-        android:id="@+id/change_number"
-        android:orderInCategory="100"
-        android:onClick="changeNumber"
-        android:title="System Number"
-        android:showAsAction="ifRoom" />
-
-    <item
-        android:id="@+id/set_limit"
-        android:orderInCategory="100"
-        android:onClick="setLimit"
-        android:title="Balance Limit"
-        android:showAsAction="ifRoom" />
-
+        android:id="@+id/menu_setting"
+        android:title="@string/settings"
+        app:showAsAction="never"
+        />
 </menu>

@@ -9,19 +9,23 @@ import java.util.List;
 /**
  * Created by kobby on 10-Jun-16.
  */
-public class SystemResponse implements Parcelable {
+public class RemoteSystemState implements Parcelable {
 
     private List<Boolean> alarmStatus = new ArrayList<Boolean>(4);
     private boolean power;
     private boolean intruder;
     private double balance;
-    private String user;
+    private String user= "User not set";
     private int volume;
 
-    public SystemResponse() {
+    public RemoteSystemState() {
+        // set all alarm to off by default
+        for (int i = 0; i < 4; i++) {
+            alarmStatus.add(false);
+        }
     }
 
-    protected SystemResponse(Parcel in) {
+    protected RemoteSystemState(Parcel in) {
         if (in.readByte() == 0x01) {
             alarmStatus = new ArrayList<Boolean>();
             in.readList(alarmStatus, Boolean.class.getClassLoader());
@@ -43,7 +47,7 @@ public class SystemResponse implements Parcelable {
         this.alarmStatus = alarmStatus;
     }
 
-    public boolean isPower() {
+    public boolean hasPower() {
         return power;
     }
 
@@ -83,7 +87,15 @@ public class SystemResponse implements Parcelable {
         this.volume = volume;
     }
 
-    public static Creator<SystemResponse> getCREATOR() {
+    public boolean areAllAlarmsOn() {
+        boolean allOn = false;
+        for (boolean alarmState : alarmStatus) {
+            allOn = allOn && alarmState;
+        }
+        return allOn;
+    }
+
+    public static Creator<RemoteSystemState> getCREATOR() {
         return CREATOR;
     }
 
@@ -108,15 +120,15 @@ public class SystemResponse implements Parcelable {
     }
 
     @SuppressWarnings("unused")
-    public static final Parcelable.Creator<SystemResponse> CREATOR = new Parcelable.Creator<SystemResponse>() {
+    public static final Parcelable.Creator<RemoteSystemState> CREATOR = new Parcelable.Creator<RemoteSystemState>() {
         @Override
-        public SystemResponse createFromParcel(Parcel in) {
-            return new SystemResponse(in);
+        public RemoteSystemState createFromParcel(Parcel in) {
+            return new RemoteSystemState(in);
         }
 
         @Override
-        public SystemResponse[] newArray(int size) {
-            return new SystemResponse[size];
+        public RemoteSystemState[] newArray(int size) {
+            return new RemoteSystemState[size];
         }
     };
 }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <EditTextPreference
+        android:title="@string/system_phone_number"
+        android:key="@string/pref_key_system_phone_number"
+        android:inputType="phone"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:title="@string/low_balance_warning_limit"
+        android:inputType="numberDecimal"
+        android:digits="0123456789"
+        android:defaultValue="0"
+        android:key="@string/pref_key_low_balance_warning_limit"
+        app:useSimpleSummaryProvider="true" />
+</PreferenceScreen>

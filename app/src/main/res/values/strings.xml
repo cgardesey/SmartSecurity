@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Smart Security</string>
+    <string name="system_phone_number">System Phone Number</string>
+    <string name="pref_key_system_phone_number">pref_key_system_phone_number</string>
+    <string name="low_balance_warning_limit">Low Balance Warning Limit</string>
+    <string name="pref_key_low_balance_warning_limit">pref_key_low_balance_warning_limit</string>
+    <string name="settings">Settings</string>
 </resources>

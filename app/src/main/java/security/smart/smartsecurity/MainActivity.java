@@ -1,315 +1,261 @@
 package security.smart.smartsecurity;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
+import android.content.Intent;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.preference.PreferenceManager;
-import android.support.v7.app.AppCompatActivity;
-import android.telephony.SmsManager;
-import android.text.InputType;
-import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
-    public static final String EXTRA_SYSTEM_RESPONSE = "EXTRA_SYSTEM_RESPONSE";
-    public static final String PREF_BALANCE = "PREF_BALANCE_SMART";
+    private Map<Alarm, ImageView> alarmIVMap = new LinkedHashMap<>();
 
-    public static final String ALARM_1 = "1.";
-    public static final String ALARM_2 = "2.";
-    public static final String ALARM_3 = "3.";
-    public static final String ALARM_4 = "4.";
-    public static final String ALL_ALARMS = "Test all";
-    boolean isSetAllAlarms =true;
-    boolean Power = false;
-    ImageView alarm1;
-    ImageView alarm2;
-    ImageView alarm3;
-    ImageView alarm4;
-    Button allAlarms;
+    Button allAlarmsBtn;
+    Button checkBalanceBtn;
+    Button loadCreditBtn;
     TextView balanceTV;
+    TextView userTV;
+    TextView intruderAlertTV;
+
+    ImageView powerIV;
+
+    RemoteSystemState currentSystemState = new RemoteSystemState();
+
+    RemoteMessageOps remoteMessageOps;
+
+    SystemStateOps systemStateOps;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        allAlarms = (Button) findViewById(R.id.allAlarms);
-        alarm1 = (ImageView) findViewById(R.id.alarm1);
-        alarm2 = (ImageView) findViewById(R.id.alarm2);
-        alarm3 = (ImageView) findViewById(R.id.alarm3);
-        alarm4 = (ImageView) findViewById(R.id.alarm4);
-         balanceTV = (TextView) findViewById(R.id.balanceTV);
-
-        setAlarm();
-     //   seekbarSetup();
-//        ButterKnife.bind(this);
-
+        Context appContext = getApplicationContext();
+        remoteMessageOps = new RemoteMessageOps(appContext);
+        systemStateOps = new SystemStateOps(appContext);
+        setUpUIHandles();
     }
 
+    protected void onStart() {
+        super.onStart();
+        EventBus.getDefault().register(this);
 
-    public void setAlarm() {
+        if (!systemStateOps.isSystemSetUp()) {
+            showSetUpDialog();
+        } else {
+            updateUI();
+            setSystemState();
+        }
+    }
 
-        allAlarms.setOnLongClickListener(new View.OnLongClickListener() {
+    private void showSetUpDialog() {
+        SetupDialogFragment setupDialogFragment = new SetupDialogFragment();
+        setupDialogFragment.show(getSupportFragmentManager(), null);
+    }
+
+    private void updateUI() {
+        updateAlarmStates();
+        updateBalanceTV();
+        updateUserTV();
+        updateIntruderAlertTV();
+    }
+
+    private void updateIntruderAlertTV() {
+        if (currentSystemState.isIntruder()) {
+            intruderAlertTV.setText("Intrusion Alert!!!");
+            intruderAlertTV.setTextColor(getResources().getColor(R.color.red));
+        }
+    }
+
+    private void playIntruderSound() {
+//        Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+//
+//        if (alert == null) {
+//            // alert is null, using backup
+//            alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+//
+//            // I can't see this ever being null (as always have a default notification)
+//            // but just incase
+//            if (alert == null) {
+//                // alert backup is null, using 2nd backup
+//                alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+//            }
+//        }
+//        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), alert);
+//        r.play();
+//        r.play();
+//        r.play();
+//        new CountDownTimer(10000, 200) {
+//            int timerCounter = 0;
+//
+//            @Override
+//            public void onTick(long millisUntilFinished) {
+//                // empty
+//
+//                if (timerCounter % 2 == 0) {
+//                    powerTV.setBackgroundResource(R.drawable.red_background);
+//                } else {
+//                    powerTV.setBackgroundResource(R.color.default_color);
+//                }
+//            }
+//
+//            @Override
+//            public void onFinish() {
+//                powerTV.setBackgroundResource(R.drawable.white_background);
+//
+//                powerTV.setText("");
+//                SystemStateOps.setAlarmState(MainActivity.this, false);
+//            }
+//        }.start();
+    }
+
+    private void updateUserTV() {
+        userTV.setText("System Response to " + String.valueOf(currentSystemState.getUser()));
+    }
+
+    private void updateBalanceTV() {
+        balanceTV.setText("GHC " + String.valueOf(currentSystemState.getBalance()));
+        String strBalanceLimit = systemStateOps.getLowBalanceWarningLimit();
+        double lowBalanceLimit = Double.parseDouble(strBalanceLimit);
+        if (currentSystemState.getBalance() < lowBalanceLimit) {
+            balanceTV.setTextColor(getResources().getColor(R.color.red));
+        } else {
+            balanceTV.setTextColor(getResources().getColor(R.color.green));
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        EventBus.getDefault().unregister(this);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void getEvent(IncomingSMSBroadcastReceiver.NewSystemStateEvent event) {
+        setSystemState();
+    }
+
+    private void setSystemState() {
+        if (systemStateOps.hasRemoteSystemState()) {
+            currentSystemState = systemStateOps.getRemoteSystemState();
+            updateUI();
+        }
+    }
+
+    private void setUpUIHandles() {
+        alarmIVMap.put(Alarm.ALARM_1, (ImageView) findViewById(R.id.alarm1));
+        alarmIVMap.put(Alarm.ALARM_2, (ImageView) findViewById(R.id.alarm2));
+        alarmIVMap.put(Alarm.ALARM_3, (ImageView) findViewById(R.id.alarm3));
+        alarmIVMap.put(Alarm.ALARM_4, (ImageView) findViewById(R.id.alarm4));
+        balanceTV = findViewById(R.id.balanceTV);
+        allAlarmsBtn = findViewById(R.id.allAlarms);
+        intruderAlertTV = findViewById(R.id.intruderAlertTV);
+        userTV = findViewById(R.id.userTV);
+        checkBalanceBtn = findViewById(R.id.checkBalanceBtn);
+        powerIV = findViewById(R.id.powerIV);
+        loadCreditBtn = findViewById(R.id.loadCreditBtn);
+        setUpBtns();
+    }
+
+    private void setUpBtns() {
+        setUpCheckBalanceBtn();
+        setUpPowerBtn();
+        setUpLoadCreditBtn();
+        setUpAllAlarmsBtn();
+    }
+
+    private void setUpAllAlarmsBtn() {
+        allAlarmsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                testAllAlarms();
+            }
+        });
+
+        allAlarmsBtn.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                if(isSetAllAlarms){
-                    sendMessage("all0");
+                if (currentSystemState.areAllAlarmsOn()) {
+                    remoteMessageOps.turnAllAlarmsOff();
                     return true;
-                }
-                else{
-                    sendMessage("all1");
+                } else {
+                    remoteMessageOps.turnAllAlarmsOn();
                     return false;
                 }
 
             }
         });
-//        alarm1.setOnLongClickListener(new View.OnLongClickListener() {
-//            @Override
-//            public boolean onLongClick(View v) {
-//                sendMessage("Set alarm 1");
-//                return true;}});
-//        alarm2.setOnLongClickListener(new View.OnLongClickListener() {
-//            @Override
-//            public boolean onLongClick(View v) {
-//                sendMessage("Set alarm 2");
-//                return true;}});
-//        alarm3.setOnLongClickListener(new View.OnLongClickListener() {
-//            @Override
-//            public boolean onLongClick(View v) {
-//                sendMessage("Set alarm 3");
-//                return true;}});
-//
-//        alarm4.setOnLongClickListener(new View.OnLongClickListener() {
-//            @Override
-//            public boolean onLongClick(View v) {
-//                sendMessage("Set alarm 4");
-//                return true;}});
     }
 
-//    public void seekbarSetup() {
-//
-//        SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar);
-//
-//        SystemResponse response = getIntent().getParcelableExtra(EXTRA_SYSTEM_RESPONSE);
-//        if (response != null) {
-//            setSystemResponseDisplay(response);
-//        }
-//
-//
-//        seekBar.setOnSeekBarChangeListener(
-//                new SeekBar.OnSeekBarChangeListener() {
-//                    int progress = 0;
-//
-//                    @Override
-//                    public void onProgressChanged(SeekBar seekBar,
-//                                                  int progresValue, boolean fromUser) {
-//                        progress = progresValue;
-//                    }
-//
-//                    @Override
-//                    public void onStartTrackingTouch(SeekBar seekBar) {
-//                        // Do something here,
-//                        //if you want to do anything at the start of
-//                        // touching the seekbar
-//                    }
-//
-//                    @Override
-//                    public void onStopTrackingTouch(SeekBar seekBar) {
-//
-//                        sendMessage("V" + String.valueOf(progress));
-//
-//                        // Display the value in textview
-//                    }
-//                });
-//    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (!SystemStateOps.isSystemSetUp(this)) {
-            showPhoneNumberDialog();
-        } else {
-            checkLastSystemState();
-        }
-    }
-
-    private void checkLastSystemState() {
-        if (SystemStateOps.hasPendingRemoteEvent(this)) {
-            RemoteDetectionEvent lastEvent = SystemStateOps.getLastRemoteEvent(this);
-            SystemStateOps.clearLastPendingEvent(this);
-            setSystemResponseDisplay(lastEvent.toSystemResponse());
-        }
-    }
-
-    private boolean isSystemSetup() {
-        return !TextUtils.isEmpty(SystemStateOps.getSavedNumber(this));
-    }
-
-    private void showPhoneNumberDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Please enter system number");
-
-        final EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_PHONE);
-        builder.setView(input);
-        input.setText(SystemStateOps.getSavedNumber(this));
-
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+    private void setUpCheckBalanceBtn() {
+        checkBalanceBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String userInput = input.getText().toString();
-                SystemStateOps.savePhoneNumber(MainActivity.this, userInput);
+            public void onClick(View v) {
+                remoteMessageOps.retrieveRemoteSystemState();
             }
         });
-        builder.show();
     }
 
-    private void setSystemResponseDisplay(SystemResponse response) {
-        alarm1 = (ImageView) findViewById(R.id.alarm1);
-        if (response.getAlarmStatus().get(0)) {
-            alarm1.setImageResource(R.drawable.alarm_on);
-        }
-
-        alarm2 = (ImageView) findViewById(R.id.alarm2);
-        if (response.getAlarmStatus().get(1)) {
-            alarm2.setImageResource(R.drawable.alarm_on);
-        }
-        alarm3 = (ImageView) findViewById(R.id.alarm3);
-        if (response.getAlarmStatus().get(2)) {
-            alarm3.setImageResource(R.drawable.alarm_on);
-        }
-
-        alarm4 = (ImageView) findViewById(R.id.alarm4);
-        if (response.getAlarmStatus().get(3)) {
-            alarm4.setImageResource(R.drawable.alarm_on);
-        }
-        new CountDownTimer(2000, 200) {
-
+    private void setUpLoadCreditBtn() {
+        loadCreditBtn.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onTick(long millisUntilFinished) {
-                // empty
+            public void onClick(View v) {
+                LoadCreditDialogFragment loadCreditDialogFragment = new LoadCreditDialogFragment();
+                loadCreditDialogFragment.show(getSupportFragmentManager(), null);
             }
+        });
+    }
 
+    private void setUpPowerBtn() {
+        powerIV.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
-            public void onFinish() {
-
-                alarm1.setImageResource(R.drawable.alarm_off);
-                alarm2.setImageResource(R.drawable.alarm_off);
-                alarm3.setImageResource(R.drawable.alarm_off);
-                alarm4.setImageResource(R.drawable.alarm_off);
+            public boolean onLongClick(View v) {
+                if (currentSystemState.hasPower()) {
+                    remoteMessageOps.turnPowerOff();
+                } else {
+                    remoteMessageOps.turnPowerOn();
+                }
+                return true;
             }
-        }.start();
-
-        balanceTV.setText("GHC " +String.valueOf(response.getBalance()));
-        double savedBalance = getSavedBalance();
-        double responseBalance = response.getBalance();
-
-        checkbalancelimit( savedBalance , responseBalance );
-
-        TextView userTV = (TextView) findViewById(R.id.userTV);
-        userTV.setText("System Response to " +  String.valueOf(response.getUser()));
-
-        final TextView powerTV = (TextView) findViewById(R.id.powerTV);
-        if (response.isIntruder() && SystemStateOps.getAlarmState(this)) {
-            powerTV.setText("Intrusion Alert!!!");
-            Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-
-            if (alert == null) {
-                // alert is null, using backup
-                alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-                // I can't see this ever being null (as always have a default notification)
-                // but just incase
-                if (alert == null) {
-                    // alert backup is null, using 2nd backup
-                    alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-                }
-            }
-            Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), alert);
-            r.play();
-            r.play();
-            r.play();
-            new CountDownTimer(10000, 200) {
-                int timerCounter = 0;
-
-                @Override
-                public void onTick(long millisUntilFinished) {
-                    // empty
-
-                    if (timerCounter % 2 == 0) {
-                        powerTV.setBackgroundResource(R.drawable.red_background);
-                    } else {
-                        powerTV.setBackgroundResource(R.color.default_color);
-                    }
-                }
-
-                @Override
-                public void onFinish() {
-                    powerTV.setBackgroundResource(R.drawable.white_background);
-
-                    powerTV.setText("");
-                    SystemStateOps.setAlarmState(MainActivity.this,false);
-                }
-            }.start();
-
-        }
-
-
-//        if (response.isPower()) {
-//            ImageView imageView = (ImageView) findViewById(R.id.powerImage);
-//            imageView.setImageResource(R.drawable.power_on);
-//            Power = true;
-//            powerTV.setText("System Enabled");
-//        } else {
-//            ImageView imageView = (ImageView) findViewById(R.id.powerImage);
-//            imageView.setImageResource(R.drawable.power_off);
-//            Power = false;
-//            powerTV.setText("System Disabled");
-//        }
+        });
     }
 
-    public void checkbalancelimit(double balance ,double balanceLimit ){
-        if(balance > balanceLimit) {
-            balanceTV.setTextColor(getResources().getColor(R.color.red));}
-        else{
-            balanceTV.setTextColor(getResources().getColor(R.color.green));
+    private void showEmptyPhoneNumberError() {
+        //todo Show Error on empty phone number
+    }
 
-
+    private void updateAlarmStates() {
+        for (Alarm alarm : Alarm.values()) {
+            boolean alarmState = currentSystemState.getAlarmStatus().get(alarm.getIndex());
+            setAlarmState(alarm, alarmState);
         }
     }
 
-    public String getContactName(Context context, String phoneNumber) {
-//        ContentResolver cr = context.getContentResolver();
-//        Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber));
-//        Cursor cursor = cr.query(uri, new String[]{ContactsContract.PhoneLookup.DISPLAY_NAME}, null, null, null);
-//        if (cursor == null) {
-//            return null;
-//        }
-//        String contactName = null;
-//        if (cursor.moveToFirst()) {
-//            contactName = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME));
-//        }
-//
-//        if (cursor != null && !cursor.isClosed()) {
-//            cursor.close();
-//        }
-//        if (contactName.isEmpty() || contactName == "") {
-//            return phoneNumber;
-//        } else {
-//            return contactName;
-//        }
+    private void setAlarmState(Alarm alarm, boolean state) {
+        ImageView alarmIV = alarmIVMap.get(alarm);
+        if (state) {
+            alarmIV.setImageResource(R.drawable.alarm_on);
+        } else {
+            alarmIV.setImageResource(R.drawable.alarm_off);
+        }
+    }
 
-        return "";
+    private void setAllAlarmsToOff() {
+        Alarm[] alarms = Alarm.values();
+        for (Alarm alarm : alarms) {
+            setAlarmState(alarm, false);
+        }
     }
 
     @Override
@@ -320,122 +266,40 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        return super.onOptionsItemSelected(item);
-    }
-
-    public void powerToggle(View view) {
-        if (Power)
-            sendMessage("Power off.");
-        else
-            sendMessage("Power on");
-    }
-
-    public void loadCredit(View view) {
-
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Load Credit");
-
-        // Set up the input
-        final EditText input = new EditText(this);
-        // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-        input.setInputType(InputType.TYPE_CLASS_PHONE);
-        builder.setView(input);
-
-        // Set up the buttons
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                sendMessage("Load" + input.getText().toString());
-            }
-        });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-
-        builder.show();
-    }
-
-    public void checkBalance(View view) {
-        sendMessage("Check balance");
-    }
-
-    public void sendMessage(String message) {
-        String phoneNumber = SystemStateOps.getSavedNumber(this);
-        if (TextUtils.isEmpty(phoneNumber)) {
-            showPhoneNumberDialog();
-            return;
+        int itemId = item.getItemId();
+        if (itemId == R.id.menu_setting) {
+            launchSettingScreen();
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
         }
-        if (TextUtils.isEmpty(message)) {
-            Toast.makeText(MainActivity.this, "Empty operation parameter", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        SmsManager sm = SmsManager.getDefault();
-        sm.sendTextMessage(phoneNumber, null, message, null, null);
-        Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
-
     }
 
-    public void changeNumber(MenuItem item) {
-        showPhoneNumberDialog();
+    private void launchSettingScreen() {
+        Intent i = new Intent(this, SettingsActivity.class);
+        startActivity(i);
     }
 
-    public void setLimit(MenuItem item) {
-        showBalanceDialog();
-    }
-
-    public void checkAlarm(View view) {
-        int id = view.getId();
+    public void onAlarmIVClick(View view) {
+        final int id = view.getId();
         if (id == R.id.alarm1) {
-            sendMessage(ALARM_1);
+            testAlarm(Alarm.ALARM_1);
         } else if (id == R.id.alarm2) {
-            sendMessage(ALARM_2);
+            testAlarm(Alarm.ALARM_2);
         } else if (id == R.id.alarm3) {
-            sendMessage(ALARM_3);
+            testAlarm(Alarm.ALARM_3);
         } else if (id == R.id.alarm4) {
-            sendMessage(ALARM_4);
+            testAlarm(Alarm.ALARM_4);
         }
     }
 
-    private double getSavedBalance() {
-        double am = PreferenceManager
-                .getDefaultSharedPreferences(this)
-                .getFloat(PREF_BALANCE, 2f);
-        return am;
+    private void testAlarm(Alarm alarm) {
+        remoteMessageOps.testAlarm(alarm);
     }
 
-    private void saveBalance(double balanceLimit) {
-        PreferenceManager
-                .getDefaultSharedPreferences(MainActivity.this)
-                .edit()
-                .putFloat(PREF_BALANCE, (float) balanceLimit)
-                .apply();
-    }
-
-    private void showBalanceDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Please enter balance limit");
-
-        final EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_PHONE);
-        builder.setView(input);
-        input.setText(Double.toString(getSavedBalance()));
-
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String userInput = input.getText().toString();
-                saveBalance(Double.parseDouble(userInput));
-            }
-        });
-        builder.show();
-    }
-
-    void setBalanceLimit() {
-        showBalanceDialog();
+    private void testAllAlarms() {
+        for (Alarm alarm : Alarm.values()) {
+            testAlarm(alarm);
+        }
     }
 }
