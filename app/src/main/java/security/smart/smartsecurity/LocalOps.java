@@ -12,10 +12,8 @@ import com.google.gson.Gson;
  * Created by user on 6/23/2016.
  */
 public class LocalOps {
-    private static final String PREF_PHONE_NUMBER = "PREF_PHONE_NUMBER";
-    private static final String PREF_LAST_SYSTEM_STATE = "PREF_LAST_SYSTEM_STATE";
-    private static final String PREF_ALARM_STATE = "PREF_ALARM_STATE";
-    private static final String PENDING_STATE = "PENDING_STATE";
+    private static final String PREF_KEY_LAST_SYSTEM_STATE = "PREF_LAST_SYSTEM_STATE";
+    private static final String PREF_KEY_PENDING_ALARM_STATE = "PREF_KEY_PENDING_ALARM_STATE";
 
     private Context context;
     private SharedPreferences prefs;
@@ -36,8 +34,7 @@ public class LocalOps {
     public void saveRemoteSystemState(RemoteSystemState state) {
         Gson gson = new Gson();
         prefs.edit()
-                .putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state))
-                .putBoolean(PENDING_STATE, true)
+                .putString(PREF_KEY_LAST_SYSTEM_STATE, gson.toJson(state))
                 .apply();
     }
 
@@ -45,14 +42,13 @@ public class LocalOps {
         return !TextUtils.isEmpty(getSavedNumber());
     }
 
-    public boolean hasRemoteSystemState() {
-        String savedEvent = prefs.getString(PREF_LAST_SYSTEM_STATE, "");
-        return !TextUtils.isEmpty(savedEvent);
-    }
-
     public RemoteSystemState getRemoteSystemState() {
-        String savedEvent = prefs.getString(PREF_LAST_SYSTEM_STATE, "");
-        return new Gson().fromJson(savedEvent, RemoteSystemState.class);
+        String systemStateStr = prefs.getString(PREF_KEY_LAST_SYSTEM_STATE, "");
+        if (TextUtils.isEmpty(systemStateStr)) {
+            return new RemoteSystemState();
+        } else {
+            return new Gson().fromJson(systemStateStr, RemoteSystemState.class);
+        }
     }
 
     public double getLowBalanceWarningLimit() {
@@ -61,11 +57,15 @@ public class LocalOps {
         return Double.parseDouble(balStr);
     }
 
-    public boolean hasPendingState() {
-        return prefs.getBoolean(PENDING_STATE, false);
+    public boolean hasAlarmState() {
+        return prefs.getBoolean(PREF_KEY_PENDING_ALARM_STATE, false);
     }
 
-    public void clearPendingState() {
-        prefs.edit().remove(PENDING_STATE).apply();
+    public void clearAlarmState() {
+        prefs.edit().putBoolean(PREF_KEY_PENDING_ALARM_STATE, false).apply();
+    }
+
+    public void setAlarmState() {
+        prefs.edit().putBoolean(PREF_KEY_PENDING_ALARM_STATE, true).apply();
     }
 }

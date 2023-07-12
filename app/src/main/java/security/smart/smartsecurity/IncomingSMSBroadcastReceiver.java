@@ -48,16 +48,23 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
         }
 
         try {
-            // check for valid message
-            Gson gson = new Gson();
-            IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
-            IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
+            RemoteSystemState remoteSystemState = extractRemoteSystemState(msgBody);
             LocalOps localOps = new LocalOps(context);
-            localOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
+            localOps.saveRemoteSystemState(remoteSystemState);
+            if (remoteSystemState.isIntruder()) {
+                localOps.setAlarmState();
+            }
             sendNewSystemStateEvent();
         } catch (Exception e) {
             Log.d(TAG, "Remote State parsing error" + e);
         }
+    }
+
+    private RemoteSystemState extractRemoteSystemState(String msgBody) {
+        Gson gson = new Gson();
+        IncomingSMSMessage smsMessage = gson.fromJson(msgBody, IncomingSMSMessage.class);
+        IncomingSMSMessage.InnerMessage innerMessage = smsMessage.getS();
+        return innerMessage.toRemoteSystemResponse();
     }
 
     private void sendNewSystemStateEvent() {

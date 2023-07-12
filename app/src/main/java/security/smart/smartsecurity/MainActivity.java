@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
+    private final long ALERT_TV_BLINK_DURATION = 10000;
+    private final long ALERT_TV_BLINK_INTERVAL = 200;
     private Map<Alarm, ImageView> alarmIVMap = new LinkedHashMap<>();
 
     Button allAlarmsBtn;
@@ -36,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
     ImageView powerIV;
 
-    RemoteSystemState currentSystemState = new RemoteSystemState();
+    RemoteSystemState currentSystemState;
 
     RemoteOps remoteOps;
 
@@ -52,10 +54,30 @@ public class MainActivity extends AppCompatActivity {
         setUpUIHandles();
     }
 
+    @Override
     protected void onStart() {
         super.onStart();
         EventBus.getDefault().register(this);
         refreshSystemState();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        EventBus.getDefault().unregister(this);
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void getEvent(IncomingSMSBroadcastReceiver.NewSystemStateEvent event) {
+        refreshSystemState();
+    }
+
+    private void refreshSystemState() {
+        currentSystemState = localOps.getRemoteSystemState();
+        updateUI();
+        if (!localOps.isSystemSetUp()) {
+            showSetUpDialog();
+        }
     }
 
     private void showSetUpDialog() {
@@ -68,35 +90,29 @@ public class MainActivity extends AppCompatActivity {
         updateBalanceTV();
         updateUserTV();
         updateIntruderAlertTV();
-        playIntruderSound();
+        if (localOps.hasAlarmState()) {
+            showAlarmState();
+        }
     }
 
     private void updateIntruderAlertTV() {
+        intruderAlertTV.setTextColor(getResources().getColor(R.color.red));
+        intruderAlertTV.setBackgroundResource(R.drawable.white_background);
         if (currentSystemState.isIntruder()) {
             intruderAlertTV.setText("Intrusion Alert!!!");
-            intruderAlertTV.setTextColor(getResources().getColor(R.color.red));
+        } else {
+            intruderAlertTV.setText(null);
         }
     }
 
-    private void playIntruderSound() {
-        Uri alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+    private void showAlarmState() {
+        playAlarmSound();
+        blinkIntruderTV();
+        localOps.clearAlarmState();
+    }
 
-        if (alert == null) {
-            // alert is null, using backup
-            alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-            // I can't see this ever being null (as always have a default notification)
-            // but just incase
-            if (alert == null) {
-                // alert backup is null, using 2nd backup
-                alert = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-            }
-        }
-        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), alert);
-        r.play();
-        r.play();
-        r.play();
-        new CountDownTimer(10000, 200) {
+    private void blinkIntruderTV() {
+        new CountDownTimer(ALERT_TV_BLINK_DURATION, ALERT_TV_BLINK_INTERVAL) {
             int timerCounter = 0;
 
             @Override
@@ -114,12 +130,24 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
-                intruderAlertTV.setBackgroundResource(R.drawable.white_background);
-
-                intruderAlertTV.setText("");
-//                SystemStateOps.setAlarmState(MainActivity.this, false);
+                updateIntruderAlertTV();
             }
         }.start();
+    }
+
+    private void playAlarmSound() {
+        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), getAlarmSoundUri());
+        r.play();
+        r.play();
+        r.play();
+    }
+
+    private Uri getAlarmSoundUri() {
+        Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        if (uri != null) return uri;
+        uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        if (uri != null) return uri;
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
     }
 
     private void updateUserTV() {
@@ -136,34 +164,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        EventBus.getDefault().unregister(this);
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void getEvent(IncomingSMSBroadcastReceiver.NewSystemStateEvent event) {
-        refreshSystemState();
-    }
-
-    private void refreshSystemState() {
-        if (!localOps.isSystemSetUp()) {
-            showSetUpDialog();
-        } else {
-            if (localOps.hasPendingState()) {
-                currentSystemState = localOps.getRemoteSystemState();
-                localOps.clearPendingState();
-                updateUI();
-            }
-        }
-    }
-
     private void setUpUIHandles() {
-        alarmIVMap.put(Alarm.ALARM_1, (ImageView) findViewById(R.id.alarm1));
-        alarmIVMap.put(Alarm.ALARM_2, (ImageView) findViewById(R.id.alarm2));
-        alarmIVMap.put(Alarm.ALARM_3, (ImageView) findViewById(R.id.alarm3));
-        alarmIVMap.put(Alarm.ALARM_4, (ImageView) findViewById(R.id.alarm4));
+        for (Alarm alarm : Alarm.values()) {
+            alarmIVMap.put(alarm, (ImageView) findViewById(alarm.getViewId()));
+        }
         balanceTV = findViewById(R.id.balanceTV);
         allAlarmsBtn = findViewById(R.id.allAlarms);
         intruderAlertTV = findViewById(R.id.intruderAlertTV);
@@ -171,10 +175,10 @@ public class MainActivity extends AppCompatActivity {
         checkBalanceBtn = findViewById(R.id.checkBalanceBtn);
         powerIV = findViewById(R.id.powerIV);
         loadCreditBtn = findViewById(R.id.loadCreditBtn);
-        setUpBtns();
+        setUpButtons();
     }
 
-    private void setUpBtns() {
+    private void setUpButtons() {
         setUpCheckBalanceBtn();
         setUpPowerBtn();
         setUpLoadCreditBtn();
