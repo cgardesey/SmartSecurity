@@ -134,8 +134,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateBalanceTV() {
         balanceTV.setText("GHC " + String.valueOf(currentSystemState.getBalance()));
-        String strBalanceLimit = systemStateOps.getLowBalanceWarningLimit();
-        double lowBalanceLimit = Double.parseDouble(strBalanceLimit);
+        double lowBalanceLimit = systemStateOps.getLowBalanceWarningLimit();
         if (currentSystemState.getBalance() < lowBalanceLimit) {
             balanceTV.setTextColor(getResources().getColor(R.color.red));
         } else {

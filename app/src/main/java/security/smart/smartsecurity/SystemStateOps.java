@@ -2,8 +2,9 @@ package security.smart.smartsecurity;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 import android.text.TextUtils;
+
+import androidx.preference.PreferenceManager;
 
 import com.google.gson.Gson;
 
@@ -16,29 +17,24 @@ public class SystemStateOps {
     private static final String PREF_ALARM_STATE = "PREF_ALARM_STATE";
 
     private Context context;
+    private SharedPreferences prefs;
+
     public SystemStateOps(Context context) {
         this.context = context;
+        prefs = PreferenceManager.getDefaultSharedPreferences(context);
     }
 
     public String getSavedNumber() {
-        return PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(context.getString(R.string.pref_key_system_phone_number), "");
+        return prefs.getString(context.getString(R.string.pref_key_system_phone_number), "");
     }
 
     public void savePhoneNumber(String number) {
-        PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .edit()
-                .putString(context.getString(R.string.pref_key_system_phone_number), number)
-                .apply();
+        prefs.edit().putString(context.getString(R.string.pref_key_system_phone_number), number).apply();
     }
 
     public void saveRemoteSystemState(RemoteSystemState state) {
-        SharedPreferences.Editor editor = PreferenceManager
-                .getDefaultSharedPreferences(context).edit();
         Gson gson = new Gson();
-        editor.putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state)).apply();
+        prefs.edit().putString(PREF_LAST_SYSTEM_STATE, gson.toJson(state)).apply();
     }
 
     public boolean isSystemSetUp() {
@@ -46,21 +42,18 @@ public class SystemStateOps {
     }
 
     public boolean hasRemoteSystemState() {
-        String savedEvent = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PREF_LAST_SYSTEM_STATE, "");
+        String savedEvent = prefs.getString(PREF_LAST_SYSTEM_STATE, "");
         return !TextUtils.isEmpty(savedEvent);
     }
 
     public RemoteSystemState getRemoteSystemState() {
-        String savedEvent = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PREF_LAST_SYSTEM_STATE, "");
+        String savedEvent = prefs.getString(PREF_LAST_SYSTEM_STATE, "");
         return new Gson().fromJson(savedEvent, RemoteSystemState.class);
     }
 
-    public String getLowBalanceWarningLimit() {
-        return PreferenceManager.getDefaultSharedPreferences(context)
-                .getString(context.getString(R.string.pref_key_low_balance_warning_limit), "0.0");
+    public double getLowBalanceWarningLimit() {
+        String balStr = prefs.getString(context.getString(R.string.pref_key_low_balance_warning_limit),
+                context.getString(R.string.pref_low_balance_warning_limit_default));
+        return Double.parseDouble(balStr);
     }
 }
