@@ -12,6 +12,7 @@ import android.util.Log;
 import com.google.gson.Gson;
 
 import org.greenrobot.eventbus.EventBus;
+import org.json.JSONException;
 
 public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "IncomingSMSBroadcastReceiver";
@@ -23,11 +24,17 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         final Bundle bundle = intent.getExtras();
-        if (bundle == null) throw new IllegalStateException("SMS Bundle is empty");
+        if (bundle == null) {
+            Log.d(TAG, "SMS Bundle is empty");
+            return;
+        }
 
         final Object[] pduArr = (Object[]) bundle.get(KEY_PDUS);
         final byte[] pdu = (byte[]) pduArr[PDU_OBJECT_INDEX];
-        if (pdu == null) throw new IllegalStateException("SMS pdu is empty");
+        if (pdu == null) {
+            Log.d(TAG, "SMS pdu is empty");
+            return;
+        }
 
         SmsMessage smsMessage = SmsMessage.createFromPdu(pdu);
         if (!isFromRemoteDevice(context, smsMessage.getDisplayOriginatingAddress())) {
@@ -36,18 +43,22 @@ public class IncomingSMSBroadcastReceiver extends BroadcastReceiver {
             return;
         }
         String msgBody = smsMessage.getMessageBody();
-        if (TextUtils.isEmpty(msgBody))
-            throw new IllegalStateException("Receiving empty messages from remote sensors");
+        if (TextUtils.isEmpty(msgBody)) {
+            Log.d(TAG, "Receiving empty messages from remote sensors");
+            return;
+        }
 
-        // check for valid message
-        Gson gson = new Gson();
-        IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
-        IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
-        if (innerMessage == null) throw new IllegalStateException("Event parsing error");
-
-        SystemStateOps systemStateOps = new SystemStateOps(context);
-        systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
-        sendNewSystemStateEvent();
+        try {
+            // check for valid message
+            Gson gson = new Gson();
+            IncomingSMSMessage sysEvenMsg = gson.fromJson(msgBody, IncomingSMSMessage.class);
+            IncomingSMSMessage.InnerMessage innerMessage = sysEvenMsg.getS();
+            SystemStateOps systemStateOps = new SystemStateOps(context);
+            systemStateOps.saveRemoteSystemState(innerMessage.toRemoteSystemResponse());
+            sendNewSystemStateEvent();
+        } catch (Exception e) {
+            Log.d(TAG, "Remote State parsing error" + e);
+        }
     }
 
     private void sendNewSystemStateEvent() {
