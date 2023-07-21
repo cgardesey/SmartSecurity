@@ -21,7 +21,7 @@ public class SetupDialogFragment extends DialogFragment {
         builder.setTitle("Add Remote System Number");
         builder.setView(inputET);
 
-        inputET.setHint("233*******#");
+        inputET.setHint("233*******");
         // Set up the buttons
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
